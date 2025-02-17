@@ -7,6 +7,7 @@ from create_db import create_vector_db
 from query import query_documents, query_documents_stream
 import config
 import json
+from typing import AsyncGenerator
 
 app = FastAPI(
     title="文档问答系统 API",
@@ -51,17 +52,33 @@ async def query(question: Question):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def stream_generator(question: str) -> AsyncGenerator[str, None]:
+    """异步生成器，用于流式传输响应"""
+    try:
+        for chunk in query_documents_stream(question):
+            # 使用 SSE 格式
+            yield f"data: {json.dumps({'content': chunk, 'done': False}, ensure_ascii=False)}\n\n"
+        # 发送完成标记
+        yield f"data: {json.dumps({'content': '', 'done': True}, ensure_ascii=False)}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
+
+
 @app.post("/query/stream")
 async def query_stream(question: Question):
     try:
         if not os.path.exists(config.VECTOR_DB_PATH):
             create_vector_db()
 
-        async def generate():
-            for chunk in query_documents_stream(question.text):
-                yield json.dumps({"chunk": chunk}) + "\n"
-
-        return StreamingResponse(generate(), media_type="application/x-ndjson")
+        return StreamingResponse(
+            stream_generator(question.text),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Transfer-Encoding": "chunked",
+            },
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
