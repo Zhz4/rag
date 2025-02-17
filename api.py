@@ -56,12 +56,12 @@ async def stream_generator(question: str) -> AsyncGenerator[str, None]:
     """异步生成器，用于流式传输响应"""
     try:
         for chunk in query_documents_stream(question):
-            # 使用 SSE 格式
-            yield f"data: {json.dumps({'content': chunk, 'done': False}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': chunk}}]}, ensure_ascii=False)}\n\n"
         # 发送完成标记
-        yield f"data: {json.dumps({'content': '', 'done': True}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'choices': [{'delta': {'content': None}}]}, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
     except Exception as e:
-        yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'error': {'message': str(e)}}, ensure_ascii=False)}\n\n"
 
 
 @app.post("/query/stream")
