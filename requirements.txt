@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-dotenv
+langchain
+langchain-openai
+faiss-cpu
+pymupdf
+pandas
+colorlog
+pydantic
+pydantic-settings 

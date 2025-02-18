@@ -10,9 +10,11 @@ import os
 
 router = APIRouter()
 
+
 @router.get("/")
 async def root():
     return {"message": "文档问答系统 API 服务正在运行"}
+
 
 @router.post("/rebuild-db")
 async def rebuild_database():
@@ -21,6 +23,7 @@ async def rebuild_database():
         return {"message": "向量数据库重建成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/query/stream")
 async def query_stream(question: Question):
@@ -31,10 +34,10 @@ async def query_stream(question: Question):
         handler = StreamingHandler()
         qa_system = DocumentQA()
         qa_chain = qa_system.create_qa_chain(streaming_handler=handler)
-        
+
         async def stream_response():
             task = asyncio.create_task(qa_chain.ainvoke({"question": question.text}))
-            
+
             while True:
                 try:
                     token = await asyncio.wait_for(handler.queue.get(), timeout=0.1)
@@ -60,4 +63,4 @@ async def query_stream(question: Question):
             },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
