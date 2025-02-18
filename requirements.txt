@@ -9,3 +9,4 @@ pandas
 colorlog
 pydantic
 pydantic-settings 
+langchain-community
