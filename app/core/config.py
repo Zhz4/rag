@@ -4,11 +4,12 @@ import os
 
 load_dotenv()
 
+
 class Settings(BaseSettings):
     # OpenAI配置
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "")
-    OPENAI_MODEL: str = "gpt-3.5-turbo"
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
     MAX_TOKENS: int = 1024
 
     # 文件路径配置
@@ -20,4 +21,5 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 50
 
-settings = Settings() 
+
+settings = Settings()
