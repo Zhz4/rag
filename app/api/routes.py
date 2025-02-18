@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 import asyncio
 from app.api.models import Question, Answer
@@ -7,6 +7,7 @@ from app.utils.handlers import StreamingHandler
 from app.services.vector_store import VectorStore
 from app.core.config import settings
 import os
+from pathlib import Path
 
 router = APIRouter()
 
@@ -64,3 +65,26 @@ async def query_stream(question: Question):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        # 确保 books 目录存在
+        books_dir = Path("books")
+        books_dir.mkdir(exist_ok=True)
+
+        # 构建文件保存路径
+        file_path = books_dir / file.filename
+
+        # 写入文件
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # 重建向量数据库
+        # VectorStore.create_vectorstore()
+
+        return {"message": "文件上传成功", "filename": file.filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")

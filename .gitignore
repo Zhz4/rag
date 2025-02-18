@@ -79,3 +79,7 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# 项目忽略环境
+books/
+faiss_index/
