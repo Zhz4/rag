@@ -7,7 +7,7 @@ load_dotenv()
 # OpenAI配置
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
-OPENAI_MODEL = "gpt-4"
+OPENAI_MODEL = "gpt-3.5-turbo"
 MAX_TOKENS = 1024
 
 # 文件路径配置
@@ -19,4 +19,4 @@ CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
 # 向量数据库配置
-VECTOR_DB_PATH = "faiss_index" 
+VECTOR_DB_PATH = "faiss_index"

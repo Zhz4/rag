@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import uvicorn
 import os
 from create_db import create_vector_db
-from query import query_documents, query_documents_stream
+from query import query_documents, query_documents_stream_for_api
 import config
 import json
 from typing import AsyncGenerator
@@ -39,31 +39,6 @@ async def rebuild_database():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/query")
-async def query(question: Question):
-    try:
-        # 检查向量数据库是否存在
-        if not os.path.exists(config.VECTOR_DB_PATH):
-            create_vector_db()
-
-        answer = query_documents(question.text)
-        return Answer(question=question.text, answer=answer)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-async def stream_generator(question: str) -> AsyncGenerator[str, None]:
-    """异步生成器，用于流式传输响应"""
-    try:
-        for chunk in query_documents_stream(question):
-            yield f"data: {json.dumps({'choices': [{'delta': {'content': chunk}}]}, ensure_ascii=False)}\n\n"
-        # 发送完成标记
-        yield f"data: {json.dumps({'choices': [{'delta': {'content': None}}]}, ensure_ascii=False)}\n\n"
-        yield "data: [DONE]\n\n"
-    except Exception as e:
-        yield f"data: {json.dumps({'error': {'message': str(e)}}, ensure_ascii=False)}\n\n"
-
-
 @app.post("/query/stream")
 async def query_stream(question: Question):
     try:
@@ -71,7 +46,7 @@ async def query_stream(question: Question):
             create_vector_db()
 
         return StreamingResponse(
-            stream_generator(question.text),
+            query_documents_stream_for_api(question.text),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
