@@ -6,12 +6,13 @@ from app.core.config import settings
 from app.core.logging import logger
 import os
 
+
 class VectorStore:
     @staticmethod
     def load_documents():
         """加载文档"""
         documents = []
-        
+
         # 加载 PDF 文件
         pdf_files = [f for f in os.listdir(settings.BOOKS_DIR) if f.endswith(".pdf")]
         for pdf_file in pdf_files:
@@ -32,13 +33,31 @@ class VectorStore:
 
     @staticmethod
     def create_vectorstore():
-        """创建向量数据库"""
+        """创建或更新向量数据库"""
+        # 检查是否已存在向量数据库
+        if os.path.exists(settings.FAISS_INDEX_PATH):
+            logger.info("检测到已存在的向量数据库，执行增量更新")
+            existing_vectorstore = VectorStore.load_vectorstore()
+            documents = VectorStore.load_documents()
+
+            # 创建新文档的向量嵌入
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
+            )
+            new_docs = text_splitter.split_documents(documents)
+
+            # 将新文档添加到现有向量库
+            existing_vectorstore.add_documents(new_docs)
+            existing_vectorstore.save_local(settings.FAISS_INDEX_PATH)
+            logger.info("向量索引已更新")
+            return existing_vectorstore
+
+        # 如果不存在，创建新的向量数据库
         documents = VectorStore.load_documents()
         logger.info(f"共加载 {len(documents)} 个文档片段")
 
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=settings.CHUNK_SIZE,
-            chunk_overlap=settings.CHUNK_OVERLAP
+            chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
         )
         docs = text_splitter.split_documents(documents)
         logger.info(f"文本切分完成，共生成 {len(docs)} 个文本块")
@@ -61,7 +80,5 @@ class VectorStore:
             openai_api_base=settings.OPENAI_API_BASE,
         )
         return FAISS.load_local(
-            settings.FAISS_INDEX_PATH,
-            embedding,
-            allow_dangerous_deserialization=True
-        ) 
+            settings.FAISS_INDEX_PATH, embedding, allow_dangerous_deserialization=True
+        )
