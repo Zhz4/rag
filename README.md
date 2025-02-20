@@ -1,6 +1,6 @@
-# 📚 文档问答系统
+# 📚 RAG文档问答系统
 
-一个基于向量数据库的智能文档问答系统。该系统能够处理文档，并回答与文档内容相关的问题。
+一个基于Langchain的RAG文档检索增强生成系统。该系统能够处理文档，并回答与文档内容相关的问题。
 
 ## ✨ 功能特点
 
@@ -42,9 +42,9 @@ pip install -r requirements.txt
 4. 配置环境变量
 复制 `.env.example` 到 `.env` 并填写必要的配置：
 ```
-OPENAI_API_KEY=
-OPENAI_API_BASE= 
-OPENAI_MODEL=
+OPENAI_API_KEY=  // 大模型的key
+OPENAI_API_BASE=  // 大模型代理地址
+OPENAI_MODEL=  // 大模型名称
 ```
 
 ## 📖 使用方法
@@ -65,7 +65,10 @@ python main.py
   ```
   POST /query/stream
   ```
-
+- 🚿 重构向量数据库：
+  ```
+  POST /rebuild-db
+  ```
 ## 📁 项目结构
 
 ```
@@ -84,18 +87,23 @@ app/
 
 ### Docker Compose 部署 (推荐)
 
-1. 使用 Docker Compose 启动服务
+1. 使用 Docker Compose 构建镜像
+```bash
+docker compose build
+```
+
+2. 使用 Docker Compose 启动服务
 ```bash
 docker compose up -d
 ```
 
-2. 查看服务状态
+3. 查看服务状态
 ```bash
 docker compose ps
 docker compose logs
 ```
 
-3. 停止服务
+4. 停止服务
 ```bash
 docker compose down
 ```
