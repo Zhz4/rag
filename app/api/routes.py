@@ -21,12 +21,16 @@ async def root():
 async def rebuild_database():
     try:
         VectorStore.create_vectorstore()
-        # 删除 books 目录中的所有文件
+        # 将 books 目录的文件移动到 ReadBooks 目录
         books_dir = Path("books")
+        readbooks_dir = Path("ReadBooks")
+        # 确保 ReadBooks 目录存在
+        readbooks_dir.mkdir(exist_ok=True)
         if books_dir.exists():
             for file in books_dir.iterdir():
                 if file.is_file():
-                    file.unlink()
+                    # 移动文件到 ReadBooks 目录
+                    file.rename(readbooks_dir / file.name)
         return {"message": "向量数据库重建成功，已清理文档文件"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
