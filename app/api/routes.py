@@ -80,7 +80,6 @@ async def query_stream(question: Question):
                     break
 
             yield handler.create_sse_event(None)
-            yield "data: [DONE]\n\n"
 
         return StreamingResponse(
             stream_response(),

@@ -16,6 +16,10 @@ class StreamingHandler(BaseCallbackHandler):
 
     def create_sse_event(self, token, is_source=False):
         """创建 SSE 事件"""
+        # 如果是 None 则直接返回 DONE 标记
+        if token is None:
+            return "data: [DONE]\n\n"
+
         if is_source and token:
             return f"data: {json.dumps({'sources': token}, ensure_ascii=False)}\n\n"
         return f"data: {json.dumps({'choices': [{'delta': {'content': token}}]}, ensure_ascii=False)}\n\n"
