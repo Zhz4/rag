@@ -40,14 +40,16 @@ async def rebuild_database():
 async def query_stream(question: Question):
     try:
         if not os.path.exists(settings.VECTOR_DB_PATH):
-            VectorStore.create_vectorstore()
+            raise HTTPException(status_code=404, detail="向量数据库不存在")
 
         handler = StreamingHandler()
         qa_system = DocumentQA()
         qa_chain = qa_system.create_qa_chain(streaming_handler=handler)
 
         async def stream_response():
+            # 执行查询
             task = asyncio.create_task(qa_chain.ainvoke({"question": question.text}))
+            result = None
 
             while True:
                 try:
@@ -55,6 +57,22 @@ async def query_stream(question: Question):
                     yield handler.create_sse_event(token)
                 except asyncio.TimeoutError:
                     if task.done():
+                        if not result:
+                            result = await task
+                            # 发送源文档信息
+                            if "source_documents" in result:
+                                sources = []
+                                for doc in result["source_documents"]:
+                                    sources.append(
+                                        {
+                                            "page_content": doc.page_content,
+                                            "source": doc.metadata.get(
+                                                "source", "未知来源"
+                                            ),
+                                            "page": doc.metadata.get("page", 0),
+                                        }
+                                    )
+                                yield handler.create_sse_event(sources, is_source=True)
                         break
                     continue
                 except Exception as e:

@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.services.vector_store import VectorStore
 
+
 class DocumentQA:
     """文档问答核心类"""
 
@@ -40,8 +41,10 @@ class DocumentQA:
 
         return ConversationalRetrievalChain.from_llm(
             llm=self.llm,
-            retriever=self.vectorstore.as_retriever(),
+            retriever=self.vectorstore.as_retriever(
+                search_kwargs={"k": 3}  # 返回前3个最相关的文档
+            ),
             memory=memory,
-            return_source_documents=True,
+            return_source_documents=True,  # 确保返回源文档
             output_key="answer",
-        ) 
+        )
