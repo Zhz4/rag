@@ -101,23 +101,28 @@ async def query_stream(question: Question):
 
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(files: list[UploadFile] = File(...)):
     try:
         # 确保 books 目录存在
         books_dir = Path("books")
         books_dir.mkdir(exist_ok=True)
 
-        # 构建文件保存路径
-        file_path = books_dir / file.filename
+        uploaded_files = []
+        for file in files:
+            # 构建文件保存路径
+            file_path = books_dir / file.filename
 
-        # 写入文件
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
+            # 写入文件
+            content = await file.read()
+            with open(file_path, "wb") as f:
+                f.write(content)
 
-        # 重建向量数据库
-        # VectorStore.create_vectorstore()
+            uploaded_files.append(file.filename)
 
-        return {"message": "文件上传成功", "filename": file.filename}
+        return {
+            "message": "文件上传成功",
+            "uploaded_files": uploaded_files,
+            "total_files": len(uploaded_files),
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
