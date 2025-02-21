@@ -67,3 +67,17 @@ class DocumentQA:
         history = self.redis.get_chat_history(session_id)
         history.append({"question": question, "answer": answer})
         self.redis.save_chat_history(session_id, history)
+
+    async def check_session_exists(self, session_id: str) -> bool:
+        """
+        检查会话是否存在
+
+        Args:
+            session_id: 会话ID
+
+        Returns:
+            bool: 会话是否存在
+        """
+        key = f"chat_history:{session_id}"
+        exists = await self.redis.exists(key)
+        return exists
