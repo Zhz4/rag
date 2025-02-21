@@ -8,7 +8,6 @@ from app.services.vector_store import VectorStore
 from app.core.config import settings
 import os
 from pathlib import Path
-import uuid
 
 router = APIRouter()
 
@@ -45,15 +44,6 @@ async def query_stream(question: Question):
 
         # 创建 DocumentQA 实例
         qa_system = DocumentQA()
-
-        # 如果没有提供session_id，则创建一个新的
-        if not question.session_id:
-            question.session_id = str(uuid.uuid4())
-        else:
-            # 检查session_id是否存在
-            if not await qa_system.check_session_exists(question.session_id):
-                raise HTTPException(status_code=404, detail="会话不存在")
-
         handler = StreamingHandler()
         qa_chain = qa_system.create_qa_chain(
             session_id=question.session_id, streaming_handler=handler
