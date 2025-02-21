@@ -8,6 +8,7 @@ from app.services.vector_store import VectorStore
 from app.core.config import settings
 import os
 from pathlib import Path
+import uuid
 
 router = APIRouter()
 
@@ -41,6 +42,10 @@ async def query_stream(question: Question):
     try:
         if not os.path.exists(settings.VECTOR_DB_PATH):
             raise HTTPException(status_code=404, detail="向量数据库不存在")
+
+        # 如果没有提供session_id，则创建一个新的
+        if not question.session_id:
+            question.session_id = str(uuid.uuid4())
 
         handler = StreamingHandler()
         qa_system = DocumentQA()

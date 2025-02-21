@@ -1,9 +1,10 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class Question(BaseModel):
     text: str
-    session_id: str  # 用于标识会话
+    session_id: Optional[str] = None
 
 
 class Answer(BaseModel):

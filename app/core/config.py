@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Redis配置
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
-    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "chat_hostory"))
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
     SESSION_TTL: int = int(os.getenv("SESSION_TTL", "3600"))  # 会话过期时间(秒)
 
