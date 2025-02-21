@@ -44,10 +44,11 @@ async def query_stream(question: Question):
 
         handler = StreamingHandler()
         qa_system = DocumentQA()
-        qa_chain = qa_system.create_qa_chain(streaming_handler=handler)
+        qa_chain = qa_system.create_qa_chain(
+            session_id=question.session_id, streaming_handler=handler
+        )
 
         async def stream_response():
-            # 执行查询
             task = asyncio.create_task(qa_chain.ainvoke({"question": question.text}))
             result = None
 
@@ -59,6 +60,10 @@ async def query_stream(question: Question):
                     if task.done():
                         if not result:
                             result = await task
+                            # 保存对话历史到Redis
+                            qa_system.save_chat_history(
+                                question.session_id, question.text, result["answer"]
+                            )
                             # 发送源文档信息
                             if "source_documents" in result:
                                 sources = []
