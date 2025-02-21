@@ -1,22 +1,23 @@
 import os
 from langchain_openai import ChatOpenAI
-from langchain.document_loaders import PyMuPDFLoader, CSVLoader
+from langchain_community.document_loaders import PyMuPDFLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from tqdm import tqdm
 from langchain_openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 import config
+
 
 def load_documents():
     documents = []
-    
+
     # 加载 PDF 文件
     pdf_files = [f for f in os.listdir(config.BOOKS_DIR) if f.endswith(".pdf")]
     if not pdf_files:
         print("⚠️ 没有找到 PDF 文件，请检查 books 文件夹！")
     else:
         print(f"📂 在 books 文件夹中找到 {len(pdf_files)} 个 PDF 文件，开始加载...")
-        
+
     for pdf_file in pdf_files:
         pdf_path = os.path.join(config.BOOKS_DIR, pdf_file)
         print(f"📖 正在加载文件：{pdf_path}")
@@ -38,6 +39,7 @@ def load_documents():
 
     return documents
 
+
 def create_vector_db():
     # 1. 加载文档
     documents = load_documents()
@@ -45,8 +47,7 @@ def create_vector_db():
 
     # 2. 文本切分
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=config.CHUNK_SIZE, 
-        chunk_overlap=config.CHUNK_OVERLAP
+        chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP
     )
     docs = text_splitter.split_documents(documents)
     print(f"📄 文本切分完成，共生成 {len(docs)} 个文本块。")
@@ -65,5 +66,6 @@ def create_vector_db():
     vectorstore.save_local(config.FAISS_INDEX_PATH)
     print("✅ 向量索引已保存！")
 
+
 if __name__ == "__main__":
-    create_vector_db() 
+    create_vector_db()
