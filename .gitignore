@@ -83,3 +83,7 @@ dmypy.json
 # 项目忽略环境
 books/
 faiss_index/
+
+# 忽略已处理的文档目录
+ReadBooks/
+ReadBooks/*
