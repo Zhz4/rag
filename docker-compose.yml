@@ -13,9 +13,11 @@ services:
       - .env
     restart: unless-stopped
     environment:
+      - DB_HOST=mysql
       - REDIS_HOST=redis
     depends_on:
       - redis
+      - mysql
 
   redis:
     image: redis:alpine
@@ -25,5 +27,17 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+    command: --default-authentication-plugin=mysql_native_password
+
 volumes:
-  redis_data: 
+  redis_data:
+  mysql_data: 
