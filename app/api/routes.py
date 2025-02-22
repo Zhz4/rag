@@ -64,7 +64,7 @@ async def query_stream(question: Question, db: Session = Depends(get_db)):
                     if task.done():
                         if not result:
                             result = await task
-                            # 保存对话历史到Redis
+                            # 保存对话历史到Mysql
                             qa_system.save_chat_history(
                                 question.session_id, question.text, result["answer"]
                             )
