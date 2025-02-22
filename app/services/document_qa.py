@@ -4,16 +4,19 @@ from langchain.memory import ConversationBufferMemory
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.vector_store import VectorStore
-from app.utils.redis_client import RedisClient
+from app.utils.mysql_client import MySQLClient
+from app.core.database import get_db
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
 
 class DocumentQA:
     """文档问答核心类"""
 
-    def __init__(self):
+    def __init__(self, db: Session):
         self.llm = None
         self.vectorstore = None
-        self.redis = RedisClient()
+        self.mysql = MySQLClient(db)
         self.init_resources()
 
     def init_resources(self, streaming=False):
@@ -37,8 +40,8 @@ class DocumentQA:
             return_messages=True,
         )
 
-        # 从Redis加载历史记录
-        history = self.redis.get_chat_history(session_id)
+        # 从MySQL加载历史记录
+        history = self.mysql.get_chat_history(session_id)
         for msg in history:
             memory.save_context(
                 {"question": msg["question"]}, {"answer": msg["answer"]}
@@ -63,21 +66,9 @@ class DocumentQA:
         )
 
     def save_chat_history(self, session_id: str, question: str, answer: str):
-        """保存对话历史到Redis"""
-        history = self.redis.get_chat_history(session_id)
-        history.append({"question": question, "answer": answer})
-        self.redis.save_chat_history(session_id, history)
+        """保存对话历史到MySQL"""
+        self.mysql.save_chat_history(session_id, question, answer)
 
     async def check_session_exists(self, session_id: str) -> bool:
-        """
-        检查会话是否存在
-
-        Args:
-            session_id: 会话ID
-
-        Returns:
-            bool: 会话是否存在
-        """
-        key = f"chat_history:{session_id}"
-        exists = await self.redis.exists(key)
-        return exists
+        """检查会话是否存在"""
+        return await self.mysql.exists(session_id)

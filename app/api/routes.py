@@ -8,6 +8,9 @@ from app.services.vector_store import VectorStore
 from app.core.config import settings
 import os
 from pathlib import Path
+from app.core.database import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
 
 router = APIRouter()
 
@@ -37,13 +40,13 @@ async def rebuild_database():
 
 
 @router.post("/query/stream")
-async def query_stream(question: Question):
+async def query_stream(question: Question, db: Session = Depends(get_db)):
     try:
         if not os.path.exists(settings.VECTOR_DB_PATH):
             raise HTTPException(status_code=404, detail="向量数据库不存在")
 
-        # 创建 DocumentQA 实例
-        qa_system = DocumentQA()
+        # 创建 DocumentQA 实例，传入数据库会话
+        qa_system = DocumentQA(db)
         handler = StreamingHandler()
         qa_chain = qa_system.create_qa_chain(
             session_id=question.session_id, streaming_handler=handler
