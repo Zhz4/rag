@@ -16,16 +16,7 @@ services:
       - DB_HOST=mysql
       - REDIS_HOST=redis
     depends_on:
-      - redis
       - mysql
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
 
   mysql:
     image: mysql:8.0
@@ -36,8 +27,8 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_NAME}                # 创建用户 myuser
     command: --default-authentication-plugin=mysql_native_password
 
 volumes:
-  redis_data:
   mysql_data: 
