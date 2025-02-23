@@ -5,7 +5,7 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent
 sys.path.append(str(root_dir))
 
-from app.models.chat import Base
+from app.db.models.chat import Base
 from app.core.config import settings
 from sqlalchemy import create_engine, text
 import pymysql
