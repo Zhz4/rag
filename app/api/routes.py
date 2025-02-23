@@ -8,7 +8,7 @@ from app.services.vector_store import VectorStore
 from app.core.config import settings
 import os
 from pathlib import Path
-from app.core.database import get_db
+from app.db.database import get_db
 from sqlalchemy.orm import Session
 from fastapi import Depends
 

@@ -1,12 +1,10 @@
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from app.core.config import settings
-from app.core.logging import logger
+from app.logging.logging import logger
 from app.services.vector_store import VectorStore
 from app.utils.mysql_client import MySQLClient
-from app.core.database import get_db
-from fastapi import Depends
 from sqlalchemy.orm import Session
 
 

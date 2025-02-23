@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
-from app.models.chat import ChatHistory
+from app.db.models.chat import ChatHistory
 from typing import List, Dict
-from datetime import datetime
 
 
 class MySQLClient:
