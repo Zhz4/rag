@@ -28,5 +28,16 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
     SESSION_TTL: int = int(os.getenv("SESSION_TTL", "3600"))  # 会话过期时间(秒)
 
+    # MySQL配置
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT: int = int(os.getenv("DB_PORT", "3306"))
+    DB_USER: str = os.getenv("DB_USER", "root")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
+    DB_NAME: str = os.getenv("DB_NAME", "docqa")
+
+    @property
+    def DATABASE_URL(self) -> str:
+        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
 
 settings = Settings()

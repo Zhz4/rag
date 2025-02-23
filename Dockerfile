@@ -11,4 +11,7 @@ RUN mkdir -p logs books faiss_index
 
 EXPOSE 8000
 
-CMD ["python", "main.py"]
+# 确保脚本具有执行权限
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]
