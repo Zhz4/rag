@@ -5,7 +5,7 @@ from app.api.models import Question, Answer
 from app.services.document_qa import DocumentQA
 from app.utils.handlers import StreamingHandler
 from app.services.vector_store import VectorStore
-from app.core.config import settings
+from app.config.index import settings
 import os
 from pathlib import Path
 from app.db.database import get_db

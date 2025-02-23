@@ -2,7 +2,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyMuPDFLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from app.core.config import settings
+from app.config.index import settings
 from app.logging.logging import logger
 import os
 

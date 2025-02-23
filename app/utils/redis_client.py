@@ -1,6 +1,6 @@
 import json
 import redis
-from app.core.config import settings
+from app.config.index import settings
 
 
 class RedisClient:
