@@ -22,6 +22,7 @@ async def root():
 
 @router.post("/rebuild-db")
 async def rebuild_database():
+    """重建向量数据库"""
     try:
         VectorStore.create_vectorstore()
         # 将 books 目录的文件移动到 ReadBooks 目录
@@ -41,6 +42,7 @@ async def rebuild_database():
 
 @router.post("/query/stream")
 async def query_stream(question: Question, db: Session = Depends(get_db)):
+    """流式问答"""
     try:
         if not os.path.exists(settings.VECTOR_DB_PATH):
             raise HTTPException(status_code=404, detail="向量数据库不存在")
@@ -105,6 +107,7 @@ async def query_stream(question: Question, db: Session = Depends(get_db)):
 
 @router.post("/upload")
 async def upload_file(files: list[UploadFile] = File(...)):
+    """上传文档"""
     try:
         # 确保 books 目录存在
         books_dir = Path("books")
@@ -129,3 +132,13 @@ async def upload_file(files: list[UploadFile] = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
+
+
+@router.get("/chat-history")
+async def get_chat_history(session_id: str, db: Session = Depends(get_db)):
+    """获取聊天历史"""
+    try:
+        qa_system = DocumentQA(db)
+        return qa_system.get_chat_history(session_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
