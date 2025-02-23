@@ -48,13 +48,17 @@ OPENAI_MODEL=  // 大模型名称
 ```
 
 ## 📖 使用方法
+1. 初始化mysql数据库
+```bash
+python scripts/init_db.py
+```
 
-1. 启动服务
+2. 启动服务
 ```bash
 python main.py
 ```
 
-2. API 接口
+3. API 接口
 
 - 📤 文档上传：
   ```
