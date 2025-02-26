@@ -35,7 +35,11 @@ class VectorStore:
     def create_vectorstore():
         """创建或更新向量数据库"""
         # 检查是否已存在向量数据库
-        if os.path.exists(settings.FAISS_INDEX_PATH):
+        if (
+            os.path.exists(settings.FAISS_INDEX_PATH)
+            and os.path.isdir(settings.FAISS_INDEX_PATH)
+            and len(os.listdir(settings.FAISS_INDEX_PATH)) > 0
+        ):
             logger.info("检测到已存在的向量数据库，执行增量更新")
             existing_vectorstore = VectorStore.load_vectorstore()
             documents = VectorStore.load_documents()
