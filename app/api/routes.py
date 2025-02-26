@@ -11,6 +11,7 @@ from pathlib import Path
 from app.db.database import get_db
 from sqlalchemy.orm import Session
 from fastapi import Depends
+import shutil
 
 router = APIRouter()
 
@@ -33,8 +34,10 @@ async def rebuild_database():
         if books_dir.exists():
             for file in books_dir.iterdir():
                 if file.is_file():
-                    # 移动文件到 ReadBooks 目录
-                    file.rename(readbooks_dir / file.name)
+                    # 使用 shutil 来复制和删除文件，而不是直接重命名
+                    target_path = readbooks_dir / file.name
+                    shutil.copy2(file, target_path)  # 复制文件
+                    file.unlink()  # 删除原文件
         return {"message": "向量数据库重建成功，已清理文档文件"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
