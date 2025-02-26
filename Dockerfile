@@ -2,12 +2,11 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY requirements.txt .  
 COPY . .
 
 RUN pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 
-RUN mkdir -p logs books
+RUN mkdir -p logs books faiss_index ReadBooks
 
 EXPOSE 8000
 
