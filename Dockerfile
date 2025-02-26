@@ -7,7 +7,7 @@ COPY . .
 
 RUN pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 
-RUN mkdir -p logs books faiss_index
+RUN mkdir -p logs books
 
 EXPOSE 8000
 
