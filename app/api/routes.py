@@ -50,8 +50,10 @@ async def query_stream(question: Question, db: Session = Depends(get_db)):
         # 创建 DocumentQA 实例，传入数据库会话
         qa_system = DocumentQA(db)
         handler = StreamingHandler()
-        qa_chain = qa_system.create_qa_chain(
-            session_id=question.session_id, streaming_handler=handler
+        qa_chain = await qa_system.create_qa_chain(
+            session_id=question.session_id,
+            streaming_handler=handler,
+            user_id=question.user_id,
         )
 
         async def stream_response():
@@ -67,8 +69,11 @@ async def query_stream(question: Question, db: Session = Depends(get_db)):
                         if not result:
                             result = await task
                             # 保存对话历史到Mysql
-                            qa_system.save_chat_history(
-                                question.session_id, question.text, result["answer"]
+                            await qa_system.save_chat_history(
+                                question.session_id,
+                                question.text,
+                                result["answer"],
+                                question.user_id,
                             )
                             # 发送源文档信息
                             if "source_documents" in result:
@@ -135,10 +140,22 @@ async def upload_file(files: list[UploadFile] = File(...)):
 
 
 @router.get("/chat-history")
-async def get_chat_history(session_id: str, db: Session = Depends(get_db)):
+async def get_chat_history(
+    session_id: str, user_id: str, db: Session = Depends(get_db)
+):
     """获取聊天历史"""
     try:
         qa_system = DocumentQA(db)
-        return qa_system.get_chat_history(session_id)
+        return await qa_system.get_chat_history(session_id, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/get-session")
+async def get_session(user_id: str, db: Session = Depends(get_db)):
+    """获取会话列表"""
+    try:
+        qa_system = DocumentQA(db)
+        return await qa_system.get_session(user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

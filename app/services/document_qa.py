@@ -30,7 +30,9 @@ class DocumentQA:
         self.vectorstore = VectorStore.load_vectorstore()
         logger.info("FAISS 向量数据库已成功加载！")
 
-    def get_memory(self, session_id: str) -> ConversationBufferMemory:
+    async def get_memory(
+        self, session_id: str, user_id: str
+    ) -> ConversationBufferMemory:
         """获取带历史记录的记忆对象"""
         memory = ConversationBufferMemory(
             input_key="question",
@@ -40,21 +42,23 @@ class DocumentQA:
         )
 
         # 从MySQL加载历史记录
-        history = self.mysql.get_chat_history(session_id)
+        history = await self.mysql.get_chat_history(session_id, user_id)
         for msg in history:
             memory.save_context(
                 {"question": msg["question"]}, {"answer": msg["answer"]}
             )
         return memory
 
-    def create_qa_chain(self, session_id: str, streaming_handler=None):
+    async def create_qa_chain(
+        self, session_id: str, streaming_handler=None, user_id: str = None
+    ):
         """创建问答链"""
         if streaming_handler:
             self.init_resources(streaming=True)
             self.llm.callbacks = [streaming_handler]
 
         # 获取带历史记录的记忆对象
-        memory = self.get_memory(session_id)
+        memory = await self.get_memory(session_id, user_id)
 
         return ConversationalRetrievalChain.from_llm(
             llm=self.llm,
@@ -64,14 +68,16 @@ class DocumentQA:
             output_key="answer",
         )
 
-    def save_chat_history(self, session_id: str, question: str, answer: str):
+    async def save_chat_history(
+        self, session_id: str, question: str, answer: str, user_id: str
+    ):
         """保存对话历史到MySQL"""
-        self.mysql.save_chat_history(session_id, question, answer)
+        await self.mysql.save_chat_history(session_id, question, answer, user_id)
 
-    def get_chat_history(self, session_id: str):
+    async def get_chat_history(self, session_id: str, user_id: str):
         """获取聊天历史"""
         # 检查 session_id 是否存在
-        history = self.mysql.get_chat_history(session_id)
+        history = await self.mysql.get_chat_history(session_id, user_id)
         if not history:
             raise HTTPException(status_code=404, detail=f"会话 ID {session_id} 不存在")
         return history
@@ -79,3 +85,7 @@ class DocumentQA:
     async def check_session_exists(self, session_id: str) -> bool:
         """检查会话是否存在"""
         return await self.mysql.exists(session_id)
+
+    async def get_session(self, user_id: str):
+        """获取会话列表"""
+        return await self.mysql.get_session(user_id)
