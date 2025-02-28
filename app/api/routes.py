@@ -5,6 +5,7 @@ from app.api.models import Question, Answer
 from app.services.document_qa import DocumentQA
 from app.utils.handlers import StreamingHandler
 from app.services.vector_store import VectorStore
+from app.services.files import Files
 from app.config.index import settings
 import os
 from pathlib import Path
@@ -114,33 +115,10 @@ async def query_stream(question: Question, db: Session = Depends(get_db)):
 
 
 @router.post("/upload")
-async def upload_file(files: list[UploadFile] = File(...)):
+async def upload_file(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
     """上传文档"""
-    try:
-        # 确保 books 目录存在
-        books_dir = Path("books")
-        books_dir.mkdir(exist_ok=True)
-
-        uploaded_files = []
-        for file in files:
-            # 构建文件保存路径
-            file_path = books_dir / file.filename
-
-            # 写入文件
-            content = await file.read()
-            with open(file_path, "wb") as f:
-                f.write(content)
-
-            uploaded_files.append(file.filename)
-
-        return {
-            "message": "文件上传成功",
-            "uploaded_files": uploaded_files,
-            "total_files": len(uploaded_files),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
-
+    files_service = Files(db)
+    return await files_service.uploadfile(files)
 
 @router.get("/chat-history")
 async def get_chat_history(
