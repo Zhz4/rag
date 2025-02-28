@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from fastapi import UploadFile
 from pathlib import Path
 from fastapi import File
+import shutil
 
 class Files:
     def __init__(self, db: Session):
@@ -51,3 +52,35 @@ class Files:
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
+
+
+    async def files_study(self):
+        """ 设置文件为已学习状态 """
+        try:
+            # 将 books 目录的文件移动到 ReadBooks 目录
+            books_dir = Path("books")
+            readbooks_dir = Path("ReadBooks")
+            # 确保 ReadBooks 目录存在
+            readbooks_dir.mkdir(exist_ok=True)
+            
+            if books_dir.exists():
+                for file in books_dir.iterdir():
+                    if file.is_file():
+                        # 更新数据库中对应文件的状态
+                        db_file = self.db.query(files).filter(
+                            files.file_local_path == str(file)
+                        ).first()
+                        
+                        if db_file:
+                            db_file.is_study = True
+                            self.db.commit()
+                        
+                        # 移动文件
+                        target_path = readbooks_dir / file.name
+                        shutil.copy2(file, target_path)  # 复制文件
+                        file.unlink()  # 删除原文件
+
+            return {"message": "文件学习状态更新成功"}
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(status_code=500, detail=f"文件学习失败: {str(e)}")

@@ -12,7 +12,8 @@ from pathlib import Path
 from app.db.database import get_db
 from sqlalchemy.orm import Session
 from fastapi import Depends
-import shutil
+from langchain_community.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage
 
 router = APIRouter()
 
@@ -23,23 +24,12 @@ async def root():
 
 
 @router.post("/rebuild-db")
-async def rebuild_database():
+async def rebuild_database(db: Session = Depends(get_db)):
     """重建向量数据库"""
     try:
         VectorStore.create_vectorstore()
-        # 将 books 目录的文件移动到 ReadBooks 目录
-        books_dir = Path("books")
-        readbooks_dir = Path("ReadBooks")
-        # 确保 ReadBooks 目录存在
-        readbooks_dir.mkdir(exist_ok=True)
-        if books_dir.exists():
-            for file in books_dir.iterdir():
-                if file.is_file():
-                    # 使用 shutil 来复制和删除文件，而不是直接重命名
-                    target_path = readbooks_dir / file.name
-                    shutil.copy2(file, target_path)  # 复制文件
-                    file.unlink()  # 删除原文件
-        return {"message": "向量数据库重建成功，已清理文档文件"}
+        # files_service = Files(db)
+        # await files_service.files_study()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -140,3 +130,31 @@ async def get_session(user_id: str, db: Session = Depends(get_db)):
         return await qa_system.get_session(user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/test-llm")
+async def test_llm_connection():
+    """测试大模型连接"""
+    try:
+        # 初始化 ChatOpenAI
+        chat = ChatOpenAI(
+            openai_api_key=settings.OPENAI_API_KEY,
+            openai_api_base=settings.OPENAI_API_BASE,
+            model_name=settings.OPENAI_MODEL,
+            temperature=0,
+        )
+
+        # 发送一个简单的测试消息
+        messages = [HumanMessage(content="Hello, are you there? Please reply with 'Yes, I am here.'")]
+        response = chat.invoke(messages)
+
+        return {
+            "status": "success",
+            "message": "LLM connection successful",
+            "response": response.content
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"LLM connection failed: {str(e)}"
+        )
