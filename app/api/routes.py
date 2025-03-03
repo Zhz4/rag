@@ -12,7 +12,7 @@ from pathlib import Path
 from app.db.database import get_db
 from sqlalchemy.orm import Session
 from fastapi import Depends
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
 
 router = APIRouter()
@@ -27,9 +27,15 @@ async def root():
 async def rebuild_database(db: Session = Depends(get_db)):
     """重建向量数据库"""
     try:
+        books_dir = Path("books")
+
+        # 检查 books 目录是否存在且有文件
+        if not books_dir.exists() or not any(books_dir.iterdir()):
+            return {"message": "没有需要学习的文件"}
+        
         VectorStore.create_vectorstore()
-        # files_service = Files(db)
-        # await files_service.files_study()
+        files_service = Files(db)
+        return await files_service.files_study()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -134,7 +140,6 @@ async def get_session(user_id: str, db: Session = Depends(get_db)):
 
 @router.get("/test-llm")
 async def test_llm_connection():
-    """测试大模型连接"""
     try:
         # 初始化 ChatOpenAI
         chat = ChatOpenAI(
