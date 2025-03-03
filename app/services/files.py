@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import File
 import shutil
 
+
 class Files:
     def __init__(self, db: Session):
         self.db = db
@@ -20,14 +21,14 @@ class Files:
         except Exception as e:
             self.db.rollback()
             raise e
-    
+
     async def uploadfile(self, upload_files: list[UploadFile] = File(...)):
         """上传文档"""
         try:
             # 确保 books 目录存在
             books_dir = Path("books")
             books_dir.mkdir(exist_ok=True)
-            
+
             for file in upload_files:
                 # 构建文件保存路径
                 file_path = books_dir / file.filename
@@ -53,9 +54,8 @@ class Files:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
 
-
     async def files_study(self):
-        """ 设置文件为已学习状态 """
+        """设置文件为已学习状态"""
         try:
             # 将 books 目录的文件移动到 ReadBooks 目录
             books_dir = Path("books")
@@ -67,14 +67,16 @@ class Files:
                 for file in books_dir.iterdir():
                     if file.is_file():
                         # 更新数据库中对应文件的状态
-                        db_file = self.db.query(files).filter(
-                            files.file_local_path == str(file)
-                        ).first()
-                        
+                        db_file = (
+                            self.db.query(files)
+                            .filter(files.file_local_path == str(file))
+                            .first()
+                        )
+
                         if db_file:
                             db_file.is_study = True
                             self.db.commit()
-                        
+
                         # 移动文件
                         target_path = readbooks_dir / file.name
                         shutil.copy2(file, target_path)  # 复制文件

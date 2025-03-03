@@ -5,6 +5,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from app.config.index import settings
 from app.logging.logging import logger
 import os
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.db.models.chat import files
 
 
 class VectorStore:
@@ -101,23 +104,43 @@ class VectorStore:
 
             # 获取所有文档的元数据
             docstore = vectorstore.docstore
-            
+
             # 找到要删除的文档的 IDs
             docs_to_delete = []
             for doc_id, doc in docstore._dict.items():
-                if doc.metadata.get("source") in file_paths:
-                    docs_to_delete.append(doc_id)
-            
+                doc_source = doc.metadata.get("source")
+                for file_path in file_paths:
+                    full_path = os.path.join(settings.BOOKS_DIR, file_path)
+                    if doc_source == full_path:
+                        docs_to_delete.append(doc_id)
+                        break
+
             if not docs_to_delete:
                 logger.warning("未找到指定文档的向量数据")
                 return False
 
             # 删除文档
             vectorstore.delete(docs_to_delete)
-            
+
             # 保存更新后的向量数据库
             vectorstore.save_local(settings.FAISS_INDEX_PATH)
             logger.info(f"成功删除 {len(docs_to_delete)} 个文档的向量数据")
+
+            # 变更数据库状态为未学习
+            db = next(get_db())
+            for file_path in file_paths:
+                file = (
+                    db.query(files).filter(files.file_local_path == file_path).first()
+                )
+                if file:
+                    file.is_study = False
+                    db.commit()
+                    db.refresh(file)
+
+            # 将文件从ReadBooks目录中删除
+            for file_path in file_paths:
+                os.remove(os.path.join(settings.READ_BOOKS_DIR, file_path))
+
             return True
 
         except Exception as e:
@@ -134,10 +157,10 @@ class VectorStore:
             # 只加载指定的文档
             documents = []
             for file_path in file_paths:
-                if file_path.endswith('.pdf'):
+                if file_path.endswith(".pdf"):
                     loader = PyMuPDFLoader(file_path)
                     documents.extend(loader.load())
-                elif file_path.endswith('.csv'):
+                elif file_path.endswith(".csv"):
                     loader = CSVLoader(file_path)
                     documents.extend(loader.load())
 
@@ -147,8 +170,7 @@ class VectorStore:
 
             # 文本分割
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=settings.CHUNK_SIZE,
-                chunk_overlap=settings.CHUNK_OVERLAP
+                chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
             )
             docs = text_splitter.split_documents(documents)
 

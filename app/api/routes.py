@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Body
 from fastapi.responses import StreamingResponse
 import asyncio
 from app.api.models import Question, Answer
@@ -15,6 +15,7 @@ from fastapi import Depends
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
 from typing import List
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -33,7 +34,7 @@ async def rebuild_database(db: Session = Depends(get_db)):
         # 检查 books 目录是否存在且有文件
         if not books_dir.exists() or not any(books_dir.iterdir()):
             return {"message": "没有需要学习的文件"}
-        
+
         VectorStore.create_vectorstore()
         files_service = Files(db)
         return await files_service.files_study()
@@ -112,10 +113,13 @@ async def query_stream(question: Question, db: Session = Depends(get_db)):
 
 
 @router.post("/upload")
-async def upload_file(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+async def upload_file(
+    files: list[UploadFile] = File(...), db: Session = Depends(get_db)
+):
     """上传文档"""
     files_service = Files(db)
     return await files_service.uploadfile(files)
+
 
 @router.get("/chat-history")
 async def get_chat_history(
@@ -151,38 +155,40 @@ async def test_llm_connection():
         )
 
         # 发送一个简单的测试消息
-        messages = [HumanMessage(content="Hello, are you there? Please reply with 'Yes, I am here.'")]
+        messages = [
+            HumanMessage(
+                content="Hello, are you there? Please reply with 'Yes, I am here.'"
+            )
+        ]
         response = chat.invoke(messages)
 
         return {
             "status": "success",
             "message": "LLM connection successful",
-            "response": response.content
+            "response": response.content,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"LLM connection failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"LLM connection failed: {str(e)}")
 
-@router.delete("/vector-db/documents")
-async def delete_documents(file_paths: List[str]):
-    """删除指定文档的向量数据"""
+
+class DeleteDocumentsRequest(BaseModel):
+    file_paths: List[str]
+
+
+@router.delete("/delete-documents")
+async def delete_documents(request: DeleteDocumentsRequest):
+    """删除指定文档的向量数据
+
+    Args:
+        request (DeleteDocumentsRequest): 包含要删除的文档路径列表的请求对象
+
+    Returns:
+        dict: 包含操作结果信息的字典
+    """
     try:
-        result = VectorStore.delete_documents(file_paths)
+        result = VectorStore.delete_documents(request.file_paths)
         if result:
             return {"message": "文档向量数据已成功删除"}
         return {"message": "删除失败，可能文档不存在"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/vector-db/documents")
-async def add_documents(file_paths: List[str]):
-    """添加指定文档到向量数据库"""
-    try:
-        result = VectorStore.add_documents(file_paths)
-        if result:
-            return {"message": "文档已成功添加到向量数据库"}
-        return {"message": "添加失败，请检查文档路径"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

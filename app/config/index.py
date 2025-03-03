@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # 文件路径配置
     BOOKS_DIR: str = "./books"
+    READ_BOOKS_DIR: str = "./ReadBooks"
     FAISS_INDEX_PATH: str = "faiss_index"
     VECTOR_DB_PATH: str = "faiss_index"
 
