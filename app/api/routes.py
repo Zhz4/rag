@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from fastapi import Depends
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
+from typing import List
 
 router = APIRouter()
 
@@ -163,3 +164,25 @@ async def test_llm_connection():
             status_code=500,
             detail=f"LLM connection failed: {str(e)}"
         )
+
+@router.delete("/vector-db/documents")
+async def delete_documents(file_paths: List[str]):
+    """删除指定文档的向量数据"""
+    try:
+        result = VectorStore.delete_documents(file_paths)
+        if result:
+            return {"message": "文档向量数据已成功删除"}
+        return {"message": "删除失败，可能文档不存在"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/vector-db/documents")
+async def add_documents(file_paths: List[str]):
+    """添加指定文档到向量数据库"""
+    try:
+        result = VectorStore.add_documents(file_paths)
+        if result:
+            return {"message": "文档已成功添加到向量数据库"}
+        return {"message": "添加失败，请检查文档路径"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

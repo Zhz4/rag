@@ -86,3 +86,88 @@ class VectorStore:
         return FAISS.load_local(
             settings.FAISS_INDEX_PATH, embedding, allow_dangerous_deserialization=True
         )
+
+    @staticmethod
+    def delete_documents(file_paths: list[str]):
+        """删除指定文档的向量数据
+        Args:
+            file_paths: 要删除的文档路径列表
+        """
+        try:
+            vectorstore = VectorStore.load_vectorstore()
+            if not vectorstore:
+                logger.warning("向量数据库不存在")
+                return False
+
+            # 获取所有文档的元数据
+            docstore = vectorstore.docstore
+            
+            # 找到要删除的文档的 IDs
+            docs_to_delete = []
+            for doc_id, doc in docstore._dict.items():
+                if doc.metadata.get("source") in file_paths:
+                    docs_to_delete.append(doc_id)
+            
+            if not docs_to_delete:
+                logger.warning("未找到指定文档的向量数据")
+                return False
+
+            # 删除文档
+            vectorstore.delete(docs_to_delete)
+            
+            # 保存更新后的向量数据库
+            vectorstore.save_local(settings.FAISS_INDEX_PATH)
+            logger.info(f"成功删除 {len(docs_to_delete)} 个文档的向量数据")
+            return True
+
+        except Exception as e:
+            logger.error(f"删除向量数据时发生错误: {str(e)}")
+            return False
+
+    @staticmethod
+    def add_documents(file_paths: list[str]):
+        """添加指定文档到向量数据库
+        Args:
+            file_paths: 要添加的文档路径列表
+        """
+        try:
+            # 只加载指定的文档
+            documents = []
+            for file_path in file_paths:
+                if file_path.endswith('.pdf'):
+                    loader = PyMuPDFLoader(file_path)
+                    documents.extend(loader.load())
+                elif file_path.endswith('.csv'):
+                    loader = CSVLoader(file_path)
+                    documents.extend(loader.load())
+
+            if not documents:
+                logger.warning("没有找到要添加的文档")
+                return False
+
+            # 文本分割
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=settings.CHUNK_SIZE,
+                chunk_overlap=settings.CHUNK_OVERLAP
+            )
+            docs = text_splitter.split_documents(documents)
+
+            # 加载现有向量库或创建新的
+            try:
+                vectorstore = VectorStore.load_vectorstore()
+            except Exception:
+                embedding = OpenAIEmbeddings(
+                    openai_api_key=settings.OPENAI_API_KEY,
+                    openai_api_base=settings.OPENAI_API_BASE,
+                )
+                vectorstore = FAISS.from_documents(docs, embedding)
+
+            # 添加新文档
+            vectorstore.add_documents(docs)
+            vectorstore.save_local(settings.FAISS_INDEX_PATH)
+            logger.info(f"成功添加 {len(docs)} 个文本块到向量数据库")
+            return True
+
+        except Exception as e:
+            logger.error(f"添加文档到向量数据库时发生错误: {str(e)}")
+            return False
