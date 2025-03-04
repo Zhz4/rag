@@ -1,5 +1,5 @@
 import os
-
+import logging
 from app.services.vector_store import VectorStore
 from app.services.files import Files
 from app.api.models import DeleteDocumentsRequest
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from pathlib import Path
 from fastapi import UploadFile
+
 
 async def rebuild_database(db):
     """重建向量数据库"""
@@ -23,10 +24,9 @@ async def rebuild_database(db):
         return await files_service.files_study()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
 
 
-async def upload_file(files: list[UploadFile] , db: Session):
+async def upload_file(files: list[UploadFile], db: Session):
     """上传文档"""
     files_service = Files(db)
     return await files_service.uploadfile(files)
@@ -39,27 +39,37 @@ async def study_documents():
             return {"message": "向量数据库不存在"}
 
         docstore = vectorstore.docstore
-        unique_sources = set()
+        # 用于追踪已处理的源文件
+        unique_sources = {}  # source -> [doc_ids]
         documents = []
-        
-        for doc in docstore._dict.values():
+
+        for doc_id, doc in docstore._dict.items():
             source = doc.metadata.get("source")
-            if source and source not in unique_sources:
-                # 只保留文件名部分
-                filename = os.path.basename(source)
-                unique_sources.add(source)
-                documents.append({
-                    # TODO: 添加文件URL
-                    "source":filename
-                })
+            if source:
+                if source not in unique_sources:
+                    filename = os.path.basename(source)
+                    unique_sources[source] = []
+                unique_sources[source].append(doc_id)
+
+        # 为每个源文件创建一个文档条目，包含其所有片段的ID
+        for source, doc_ids in unique_sources.items():
+            filename = os.path.basename(source)
+            documents.append(
+                {
+                    "ids": doc_ids,  # 包含文件所有片段的ID列表
+                    "source": filename,
+                    "full_path": source,
+                }
+            )
         return {"documents": documents}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 async def delete_documents(request: DeleteDocumentsRequest):
-    """删除指定文档的向量数据 """
+    """删除指定文档的向量数据"""
     try:
-        result = VectorStore.delete_documents(request.file_paths)
+        result = VectorStore.delete_documents(request.doc_ids)
         if result:
             return {"message": "文档向量数据已成功删除"}
         return {"message": "删除失败，可能文档不存在"}

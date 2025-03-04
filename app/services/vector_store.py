@@ -91,10 +91,10 @@ class VectorStore:
         )
 
     @staticmethod
-    def delete_documents(file_paths: list[str]):
+    def delete_documents(doc_ids: list[str]):
         """删除指定文档的向量数据
         Args:
-            file_paths: 要删除的文档路径列表
+            doc_ids: 要删除的文档ID列表
         """
         try:
             vectorstore = VectorStore.load_vectorstore()
@@ -102,25 +102,42 @@ class VectorStore:
                 logger.warning("向量数据库不存在")
                 return False
 
-            # 获取所有文档的元数据
             docstore = vectorstore.docstore
 
-            # 找到要删除的文档的 IDs
+            # 打印删除前的文档数量
+            logger.info(f"删除前文档总数: {len(docstore._dict)}")
+            logger.info(f"要删除的文档IDs: {doc_ids}")
+
+            # 验证所有文档ID是否存在
             docs_to_delete = []
-            for doc_id, doc in docstore._dict.items():
-                doc_source = doc.metadata.get("source")
-                for file_path in file_paths:
-                    full_path = os.path.join(settings.BOOKS_DIR, file_path)
-                    if doc_source == full_path:
-                        docs_to_delete.append(doc_id)
-                        break
+            file_paths_to_update = set()
+            for doc_id in doc_ids:
+                logger.info(f"检查文档ID: {doc_id}")
+                if doc_id in docstore._dict:
+                    docs_to_delete.append(doc_id)
+                    source = docstore._dict[doc_id].metadata.get("source")
+                    logger.info(f"找到文档，源文件: {source}")
+                    if source:
+                        relative_path = os.path.relpath(source, settings.BOOKS_DIR)
+                        file_paths_to_update.add(relative_path)
+                else:
+                    logger.warning(f"文档ID不存在: {doc_id}")
 
             if not docs_to_delete:
                 logger.warning("未找到指定文档的向量数据")
                 return False
 
             # 删除文档
+            logger.info(f"开始删除文档: {docs_to_delete}")
             vectorstore.delete(docs_to_delete)
+
+            # 验证删除结果
+            logger.info(f"删除后文档总数: {len(docstore._dict)}")
+            for doc_id in docs_to_delete:
+                if doc_id in docstore._dict:
+                    logger.error(f"文档 {doc_id} 删除失败")
+                else:
+                    logger.info(f"文档 {doc_id} 删除成功")
 
             # 保存更新后的向量数据库
             vectorstore.save_local(settings.FAISS_INDEX_PATH)
@@ -128,7 +145,7 @@ class VectorStore:
 
             # 变更数据库状态为未学习
             db = next(get_db())
-            for file_path in file_paths:
+            for file_path in file_paths_to_update:
                 file = (
                     db.query(files).filter(files.file_local_path == file_path).first()
                 )
@@ -137,9 +154,10 @@ class VectorStore:
                     db.commit()
                     db.refresh(file)
 
-            # 将文件从ReadBooks目录中删除
-            for file_path in file_paths:
-                os.remove(os.path.join(settings.READ_BOOKS_DIR, file_path))
+                # 将文件从ReadBooks目录中删除
+                read_books_path = os.path.join(settings.READ_BOOKS_DIR, file_path)
+                if os.path.exists(read_books_path):
+                    os.remove(read_books_path)
 
             return True
 
