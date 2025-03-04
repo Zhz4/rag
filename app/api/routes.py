@@ -1,164 +1,71 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import StreamingResponse
-import asyncio
-from app.api.models import Question, Answer
-from app.services.document_qa import DocumentQA
-from app.utils.handlers import StreamingHandler
-from app.services.vector_store import VectorStore
-from app.config.index import settings
-import os
-from pathlib import Path
-from app.db.database import get_db
+from fastapi import APIRouter, UploadFile, File, Query, Depends, Body
 from sqlalchemy.orm import Session
-from fastapi import Depends
-import shutil
+
+from app.api.models import (
+    Question, 
+    DeleteDocumentsRequest, 
+)
+from app.db.database import get_db
+from app.services.backend.index import rebuild_database, upload_file, study_documents, delete_documents
+from app.services.chat.index import query_stream, get_chat_history, get_session
 
 router = APIRouter()
 
 
-@router.get("/")
-async def root():
-    return {"message": "文档问答系统 API 服务正在运行"}
-
-
-@router.post("/rebuild-db")
-async def rebuild_database():
-    """重建向量数据库"""
-    try:
-        VectorStore.create_vectorstore()
-        # 将 books 目录的文件移动到 ReadBooks 目录
-        books_dir = Path("books")
-        readbooks_dir = Path("ReadBooks")
-        # 确保 ReadBooks 目录存在
-        readbooks_dir.mkdir(exist_ok=True)
-        if books_dir.exists():
-            for file in books_dir.iterdir():
-                if file.is_file():
-                    # 使用 shutil 来复制和删除文件，而不是直接重命名
-                    target_path = readbooks_dir / file.name
-                    shutil.copy2(file, target_path)  # 复制文件
-                    file.unlink()  # 删除原文件
-        return {"message": "向量数据库重建成功，已清理文档文件"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/query/stream")
-async def query_stream(question: Question, db: Session = Depends(get_db)):
-    """流式问答"""
-    try:
-        if not os.path.exists(settings.VECTOR_DB_PATH):
-            raise HTTPException(status_code=404, detail="向量数据库不存在")
-
-        # 创建 DocumentQA 实例，传入数据库会话
-        qa_system = DocumentQA(db)
-        handler = StreamingHandler()
-        qa_chain = await qa_system.create_qa_chain(
-            session_id=question.session_id,
-            streaming_handler=handler,
-            user_id=question.user_id,
-        )
-
-        async def stream_response():
-            task = asyncio.create_task(qa_chain.ainvoke({"question": question.text}))
-            result = None
-
-            while True:
-                try:
-                    token = await asyncio.wait_for(handler.queue.get(), timeout=0.1)
-                    yield handler.create_sse_event(token)
-                except asyncio.TimeoutError:
-                    if task.done():
-                        if not result:
-                            result = await task
-                            # 保存对话历史到Mysql
-                            await qa_system.save_chat_history(
-                                question.session_id,
-                                question.text,
-                                result["answer"],
-                                question.user_id,
-                            )
-                            # 发送源文档信息
-                            if "source_documents" in result:
-                                sources = []
-                                for doc in result["source_documents"]:
-                                    sources.append(
-                                        {
-                                            "page_content": doc.page_content,
-                                            "source": doc.metadata.get(
-                                                "source", "未知来源"
-                                            ),
-                                            "page": doc.metadata.get("page", 0),
-                                        }
-                                    )
-                                yield handler.create_sse_event(sources, is_source=True)
-                        break
-                    continue
-                except Exception as e:
-                    print(f"Error: {e}")
-                    break
-
-            yield handler.create_sse_event(None)
-
-        return StreamingResponse(
-            stream_response(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Transfer-Encoding": "chunked",
-            },
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/upload")
-async def upload_file(files: list[UploadFile] = File(...)):
-    """上传文档"""
-    try:
-        # 确保 books 目录存在
-        books_dir = Path("books")
-        books_dir.mkdir(exist_ok=True)
-
-        uploaded_files = []
-        for file in files:
-            # 构建文件保存路径
-            file_path = books_dir / file.filename
-
-            # 写入文件
-            content = await file.read()
-            with open(file_path, "wb") as f:
-                f.write(content)
-
-            uploaded_files.append(file.filename)
-
-        return {
-            "message": "文件上传成功",
-            "uploaded_files": uploaded_files,
-            "total_files": len(uploaded_files),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
-
-
-@router.get("/chat-history")
-async def get_chat_history(
-    session_id: str, user_id: str, db: Session = Depends(get_db)
+"""
+后台管理
+"""
+@router.post("/rebuild-db", summary="重建数据库", tags=["后台管理"])
+async def rebuild_db(
+    db: Session = Depends(get_db)
 ):
-    """获取聊天历史"""
-    try:
-        qa_system = DocumentQA(db)
-        return await qa_system.get_chat_history(session_id, user_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return await rebuild_database(db)
 
 
-@router.get("/get-session")
-async def get_session(user_id: str, db: Session = Depends(get_db)):
-    """获取会话列表"""
-    try:
-        qa_system = DocumentQA(db)
-        return await qa_system.get_session(user_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/upload", summary="上传文件", tags=["后台管理"])
+async def upload_file_handler(
+    files: list[UploadFile] = File(..., description="文档文件列表"),
+    db: Session = Depends(get_db)
+):
+    return await upload_file(files, db)
+
+
+@router.get("/study-documents", summary="模型学习文档", tags=["后台管理"])
+async def study_documents_handler():
+    return await study_documents()
+
+
+@router.post("/delete-documents", summary="模型删除文档", tags=["后台管理"])
+async def delete_documents_handler(
+    request: DeleteDocumentsRequest = Body(..., description="要删除的文档信息")
+):
+    return await delete_documents(request)
+
+
+"""
+前台
+"""
+@router.post("/query/stream", summary="模型问答", tags=["前台页面"])
+async def query_stream_handler(
+    question: Question = Body(..., description="用户提问内容"),
+    db: Session = Depends(get_db)
+):
+    return await query_stream(question, db)
+
+
+@router.get("/chat-history", summary="获取聊天记录", tags=["前台页面"])
+async def get_chat_history_handler(
+    session_id: str = Query(..., description="会话ID"),
+    user_id: str = Query(..., description="用户ID"),
+    db: Session = Depends(get_db)
+):
+    return await get_chat_history(session_id, user_id, db)
+
+
+@router.get("/get-session", summary="获取会话", tags=["前台页面"])
+async def get_session_handler(
+    user_id: str = Query(..., description="用户ID"),
+    db: Session = Depends(get_db)
+):
+    return await get_session(user_id, db)
+

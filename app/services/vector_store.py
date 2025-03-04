@@ -5,6 +5,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from app.config.index import settings
 from app.logging.logging import logger
 import os
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.db.models.chat import files
 
 
 class VectorStore:
@@ -86,3 +89,60 @@ class VectorStore:
         return FAISS.load_local(
             settings.FAISS_INDEX_PATH, embedding, allow_dangerous_deserialization=True
         )
+
+    @staticmethod
+    def delete_documents(file_paths: list[str]):
+        """删除指定文档的向量数据
+        Args:
+            file_paths: 要删除的文档路径列表
+        """
+        try:
+            vectorstore = VectorStore.load_vectorstore()
+            if not vectorstore:
+                logger.warning("向量数据库不存在")
+                return False
+
+            # 获取所有文档的元数据
+            docstore = vectorstore.docstore
+
+            # 找到要删除的文档的 IDs
+            docs_to_delete = []
+            for doc_id, doc in docstore._dict.items():
+                doc_source = doc.metadata.get("source")
+                for file_path in file_paths:
+                    full_path = os.path.join(settings.BOOKS_DIR, file_path)
+                    if doc_source == full_path:
+                        docs_to_delete.append(doc_id)
+                        break
+
+            if not docs_to_delete:
+                logger.warning("未找到指定文档的向量数据")
+                return False
+
+            # 删除文档
+            vectorstore.delete(docs_to_delete)
+
+            # 保存更新后的向量数据库
+            vectorstore.save_local(settings.FAISS_INDEX_PATH)
+            logger.info(f"成功删除 {len(docs_to_delete)} 个文档的向量数据")
+
+            # 变更数据库状态为未学习
+            db = next(get_db())
+            for file_path in file_paths:
+                file = (
+                    db.query(files).filter(files.file_local_path == file_path).first()
+                )
+                if file:
+                    file.is_study = False
+                    db.commit()
+                    db.refresh(file)
+
+            # 将文件从ReadBooks目录中删除
+            for file_path in file_paths:
+                os.remove(os.path.join(settings.READ_BOOKS_DIR, file_path))
+
+            return True
+
+        except Exception as e:
+            logger.error(f"删除向量数据时发生错误: {str(e)}")
+            return False
