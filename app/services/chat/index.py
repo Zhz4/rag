@@ -1,14 +1,15 @@
-from fastapi import HTTPException
 import asyncio
-from app.api.models import Question
-from app.services.document_qa import DocumentQA
-from app.utils.handlers import StreamingHandler
-from app.config.index import settings
 import os
+
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.api.models import Question
+from app.services.document_qa import DocumentQA
+from app.utils.handlers import StreamingHandler
+from app.config.index import settings
 
 async def query_stream(question: Question, db: Session):
     """流式问答"""

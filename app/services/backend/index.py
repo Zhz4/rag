@@ -1,11 +1,13 @@
-from sqlalchemy.orm import Session
+import os
+
 from app.services.vector_store import VectorStore
 from app.services.files import Files
+from app.api.models import DeleteDocumentsRequest
+
+from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from pathlib import Path
 from fastapi import UploadFile
-import os
-from app.api.models import DeleteDocumentsRequest
 
 async def rebuild_database(db):
     """重建向量数据库"""
@@ -55,14 +57,7 @@ async def study_documents():
         raise HTTPException(status_code=500, detail=str(e))
     
 async def delete_documents(request: DeleteDocumentsRequest):
-    """删除指定文档的向量数据
-
-    Args:
-        request (DeleteDocumentsRequest): 包含要删除的文档路径列表的请求对象
-
-    Returns:
-        dict: 包含操作结果信息的字典
-    """
+    """删除指定文档的向量数据 """
     try:
         result = VectorStore.delete_documents(request.file_paths)
         if result:
