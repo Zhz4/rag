@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Body
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 import asyncio
-from app.api.models import Question, Answer
+from app.api.models import Question,DeleteDocumentsRequest
 from app.services.document_qa import DocumentQA
 from app.utils.handlers import StreamingHandler
 from app.services.vector_store import VectorStore
@@ -170,12 +170,32 @@ async def test_llm_connection():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM connection failed: {str(e)}")
 
+@router.get("/study-documents")
+async def study_documents():
+    try:
+        vectorstore = VectorStore.load_vectorstore()
+        if not vectorstore:
+            return {"message": "向量数据库不存在"}
 
-class DeleteDocumentsRequest(BaseModel):
-    file_paths: List[str]
+        docstore = vectorstore.docstore
+        unique_sources = set()
+        documents = []
+        
+        for doc in docstore._dict.values():
+            source = doc.metadata.get("source")
+            if source and source not in unique_sources:
+                # 只保留文件名部分
+                filename = os.path.basename(source)
+                unique_sources.add(source)
+                documents.append({
+                    # TODO: 添加文件URL
+                    "source":filename
+                })
+        return {"documents": documents}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.delete("/delete-documents")
+@router.post("/delete-documents")
 async def delete_documents(request: DeleteDocumentsRequest):
     """删除指定文档的向量数据
 

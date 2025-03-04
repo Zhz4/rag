@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 
 class Question(BaseModel):
@@ -10,3 +11,6 @@ class Question(BaseModel):
 class Answer(BaseModel):
     question: str
     answer: str
+
+class DeleteDocumentsRequest(BaseModel):
+    file_paths: List[str]

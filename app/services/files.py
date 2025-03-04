@@ -41,8 +41,8 @@ class Files:
                 # 直接保存文件信息到数据库
                 file_info = files(
                     file_local_path=str(file_path),
-                    # TODO: 改成文件的url
-                    file_path=str(file_path),
+                    # TODO: 改成文件真实的url
+                    file_path=str(f'https://https://microservices.yswg.com.cn/{file_path}'),
                 )
                 self.create_file(file_info)
 
