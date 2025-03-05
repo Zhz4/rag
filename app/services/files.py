@@ -6,11 +6,13 @@ from fastapi import UploadFile
 from pathlib import Path
 from fastapi import File
 import shutil
+from app.utils.minio_client import MinioClient
 
 
 class Files:
     def __init__(self, db: Session):
         self.db = db
+        self.minio = MinioClient()
 
     def create_file(self, file: files):
         try:
@@ -38,11 +40,13 @@ class Files:
                 with open(file_path, "wb") as f:
                     f.write(content)
 
-                # 直接保存文件信息到数据库
+                # 上传到MinIO并获取URL
+                file_url = await self.minio.upload_file(str(file_path))
+
+                # 保存文件信息到数据x库
                 file_info = files(
                     file_local_path=str(file_path),
-                    # TODO: 改成文件真实的url
-                    file_path=str(f'https://https://microservices.yswg.com.cn/{file_path}'),
+                    file_path=file_url,
                 )
                 self.create_file(file_info)
 
