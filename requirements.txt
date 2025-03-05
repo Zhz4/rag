@@ -69,3 +69,4 @@ zstandard==0.23.0
 redis==5.0.1
 PyMySQL==1.1.0
 cryptography==42.0.5
+minio==7.2.5
