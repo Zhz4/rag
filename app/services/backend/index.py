@@ -72,6 +72,13 @@ async def delete_documents(request: DeleteDocumentsRequest):
         result = VectorStore.delete_documents(request.doc_ids)
         if result:
             return {"message": "文档向量数据已成功删除"}
-        return {"message": "删除失败，可能文档不存在"}
+        # 如果文档不存在，直接抛出 HTTPException
+        raise HTTPException(
+            status_code=404, detail="删除失败，文档不存在"  # 注意这里不要包含状态码
+        )
     except Exception as e:
+        # 如果是 HTTPException 就直接往上抛
+        if isinstance(e, HTTPException):
+            raise e
+        # 其他异常包装成 500
         raise HTTPException(status_code=500, detail=str(e))
