@@ -67,3 +67,52 @@ class MinioClient:
         except S3Error as e:
             logger.error(f"Error listing files from MinIO: {e}")
             raise
+
+    async def upload_file_bytes(self, file_bytes: bytes, object_name: str) -> str:
+        """上传文件字节流到MinIO
+
+        Args:
+            file_bytes: 文件字节流
+            object_name: MinIO中的对象名称
+
+        Returns:
+            str: 文件的访问URL
+        """
+        try:
+            from io import BytesIO
+
+            file_stream = BytesIO(file_bytes)
+
+            # 上传到 MinIO
+            self.client.put_object(
+                bucket_name=settings.MINIO_BUCKET_NAME,
+                object_name=object_name,
+                data=file_stream,
+                length=len(file_bytes),
+            )
+
+            # 生成文件URL
+            url = self.client.presigned_get_object(
+                settings.MINIO_BUCKET_NAME, object_name
+            )
+            return url
+        except S3Error as e:
+            logger.error(f"Error uploading file to MinIO: {e}")
+            raise
+
+    async def download_file(self, object_name: str, local_path: str) -> str:
+        """从MinIO下载文件到本地临时目录
+
+        Args:
+            object_name: MinIO中的对象名称
+            local_path: 本地保存路径
+
+        Returns:
+            str: 下载文件的本地路径
+        """
+        try:
+            self.client.fget_object(settings.MINIO_BUCKET_NAME, object_name, local_path)
+            return local_path
+        except S3Error as e:
+            logger.error(f"Error downloading file from MinIO: {e}")
+            raise

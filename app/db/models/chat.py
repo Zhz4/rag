@@ -32,7 +32,7 @@ class files(Base):
     __tablename__ = "files"
 
     id = Column(Integer, primary_key=True)
+    file_name = Column(String(255), nullable=False)
     file_path = Column(Text, nullable=False)
-    file_local_path = Column(Text, nullable=False)
     is_study = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)
