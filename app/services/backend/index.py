@@ -8,18 +8,23 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from pathlib import Path
 from fastapi import UploadFile
+from app.db.models.chat import files
 
 
 async def rebuild_database(db):
     """重建向量数据库"""
     try:
-        books_dir = Path("books")
+        # 检查是否有未学习的文件
+        unprocessed_files = (
+            db.query(files)
+            .filter(files.is_study == False, files.is_deleted == False)
+            .count()
+        )
 
-        # 检查 books 目录是否存在且有文件
-        if not books_dir.exists() or not any(books_dir.iterdir()):
+        if unprocessed_files == 0:
             return {"message": "没有需要学习的文件"}
 
-        VectorStore.create_vectorstore()
+        await VectorStore.create_vectorstore(db)
         files_service = Files(db)
         return await files_service.files_study()
     except Exception as e:
