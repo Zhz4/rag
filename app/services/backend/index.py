@@ -87,3 +87,14 @@ async def delete_documents(request: DeleteDocumentsRequest):
             raise e
         # 其他异常包装成 500
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def file_list(db: Session):
+    try:
+        files_service = Files(db)
+        return await files_service.files_list()
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        # 其他异常包装成 500
+        raise HTTPException(status_code=500, detail=str(e))

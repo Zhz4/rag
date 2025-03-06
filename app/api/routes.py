@@ -11,6 +11,7 @@ from app.services.backend.index import (
     upload_file,
     study_documents,
     delete_documents,
+    file_list,
 )
 from app.services.chat.index import query_stream, get_chat_history, get_session
 from app.api.response import success_response, error_response
@@ -51,6 +52,15 @@ async def study_documents_handler():
         return success_response(data=result)
     except Exception as e:
         return error_response(message=str(e))
+
+
+@router.get("/file-list", summary="文件列表", tags=["后台管理"])
+async def file_list_handler(db: Session = Depends(get_db)):
+    try:
+        result = await file_list(db)
+        return success_response(data=result)
+    except Exception as e:
+        return error_response(message=e)
 
 
 @router.post("/delete-documents", summary="模型删除文档", tags=["后台管理"])
