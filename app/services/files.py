@@ -70,3 +70,33 @@ class Files:
         except Exception as e:
             self.db.rollback()
             raise HTTPException(status_code=500, detail=f"文件学习失败: {str(e)}")
+
+    async def files_list(self):
+        """文件列表"""
+        try:
+            # 查询所有未删除的文件
+            files_list = (
+                self.db.query(
+                    files.id,
+                    files.file_name,
+                    files.file_path,
+                    files.is_study,
+                )
+                .filter(files.is_deleted == False)
+                .all()
+            )
+
+            # 将查询结果转换为字典列表
+            result = [
+                {
+                    "id": file.id,
+                    "file_name": file.file_name,
+                    "file_path": file.file_path,
+                    "is_study": file.is_study,
+                }
+                for file in files_list
+            ]
+
+            return result
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"文件列表查询失败: {str(e)}")
