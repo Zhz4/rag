@@ -6,10 +6,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./books:/app/books
       - ./faiss_index:/app/faiss_index
       - ./logs:/app/logs
-      - ./ReadBooks:/app/ReadBooks
     env_file:
       - .env
     restart: unless-stopped

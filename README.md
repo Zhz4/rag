@@ -13,10 +13,49 @@
 ## 🛠 技术栈
 
 - 🐍 Python
+- 🔗 LangChain
 - ⚡ FastAPI
 - 🗄️ Vector Database
-- 🔗 LangChain
-- 🧠 OpenAI
+- 📦 MinIO
+- 🐳 Docker
+- 🎲 MySQL
+
+
+## 系统流程图
+
+```mermaid
+graph TD
+    A[用户] --> B[FastAPI 服务]
+    
+    subgraph 文档处理流程
+        C[文档上传 POST /upload] --> D[MinIO存储]
+        D --> E[向量化处理]
+        E --> F[FAISS向量数据库]
+    end
+    
+    subgraph 问答流程
+        G[问题查询 POST /query/stream] --> H[LangChain检索]
+        H --> I[向量相似度搜索]
+        I --> J[OpenAI模型生成答案]
+        J --> K[流式返回答案]
+    end
+    
+    subgraph 数据存储
+        L[(MySQL数据库)]
+        M[(MinIO对象存储)]
+        N[(FAISS向量库)]
+    end
+    
+    B --> C
+    B --> G
+    F --> I
+    D --> M
+    
+    %% 数据流向
+    L --> |存储会话记录|B
+    M --> |存储原始文档|B
+    N --> |存储文档向量|B
+```
 
 ## 🚀 安装说明
 
@@ -45,6 +84,13 @@ pip install -r requirements.txt
 OPENAI_API_KEY=  // 大模型的key
 OPENAI_API_BASE=  // 大模型代理地址
 OPENAI_MODEL=  // 大模型名称
+
+# MinIO配置
+MINIO_ENDPOINT=localhost:9000  // MinIO服务地址
+MINIO_ACCESS_KEY=minioadmin   // MinIO访问密钥
+MINIO_SECRET_KEY=minioadmin   // MinIO密钥
+MINIO_BUCKET_NAME=docqa      // MinIO存储桶名称
+MINIO_SECURE=False          // 是否启用HTTPS
 ```
 
 ## 📖 使用方法
@@ -85,6 +131,9 @@ app/
 ├── services/
 │   ├── document_qa.py
 │   └── vector_store.py
+├── utils/
+│   ├── minio_client.py    # MinIO客户端工具
+│   └── handlers.py
 ```
 
 ## 🐳 部署方法
@@ -139,3 +188,14 @@ docker logs doc-qa-system
 docker stop doc-qa-system
 docker rm doc-qa-system
 ```
+
+### MinIO 服务访问
+
+部署完成后，可以通过以下地址访问MinIO服务：
+
+- MinIO API: http://localhost:9000
+- MinIO Console: http://localhost:9001
+
+默认登录凭证：
+- 用户名：admin
+- 密码：admin123
