@@ -13,10 +13,12 @@
 ## 🛠 技术栈
 
 - 🐍 Python
+- 🔗 LangChain
 - ⚡ FastAPI
 - 🗄️ Vector Database
-- 🔗 LangChain
-- 🧠 OpenAI
+- 📦 MinIO
+- �� Docker
+- 🎲 MySQL
 
 ## 🚀 安装说明
 
@@ -45,6 +47,13 @@ pip install -r requirements.txt
 OPENAI_API_KEY=  // 大模型的key
 OPENAI_API_BASE=  // 大模型代理地址
 OPENAI_MODEL=  // 大模型名称
+
+# MinIO配置
+MINIO_ENDPOINT=localhost:9000  // MinIO服务地址
+MINIO_ACCESS_KEY=minioadmin   // MinIO访问密钥
+MINIO_SECRET_KEY=minioadmin   // MinIO密钥
+MINIO_BUCKET_NAME=docqa      // MinIO存储桶名称
+MINIO_SECURE=False          // 是否启用HTTPS
 ```
 
 ## 📖 使用方法
@@ -85,6 +94,9 @@ app/
 ├── services/
 │   ├── document_qa.py
 │   └── vector_store.py
+├── utils/
+│   ├── minio_client.py    # MinIO客户端工具
+│   └── handlers.py
 ```
 
 ## 🐳 部署方法
@@ -139,3 +151,14 @@ docker logs doc-qa-system
 docker stop doc-qa-system
 docker rm doc-qa-system
 ```
+
+### MinIO 服务访问
+
+部署完成后，可以通过以下地址访问MinIO服务：
+
+- MinIO API: http://localhost:9000
+- MinIO Console: http://localhost:9001
+
+默认登录凭证：
+- 用户名：admin
+- 密码：admin123
