@@ -17,9 +17,44 @@
 - ⚡ FastAPI
 - 🗄️ Vector Database
 - 📦 MinIO
-- �� Docker
+- 🐳 Docker
 - 🎲 MySQL
 
+
+## 系统流程图
+
+```mermaid
+graph TD
+    A[用户] --> B[FastAPI 服务]
+    
+    subgraph 文档处理流程
+        C[文档上传 POST /upload] --> D[MinIO存储]
+        D --> E[向量化处理]
+        E --> F[FAISS向量数据库]
+    end
+    
+    subgraph 问答流程
+        G[问题查询 POST /query/stream] --> H[LangChain检索]
+        H --> I[向量相似度搜索]
+        I --> J[OpenAI模型生成答案]
+        J --> K[流式返回答案]
+    end
+    
+    subgraph 数据存储
+        L[(MySQL数据库)]
+        M[(MinIO对象存储)]
+        N[(FAISS向量库)]
+    end
+    
+    B --> C
+    B --> G
+    F --> I
+    D --> M
+    
+    %% 数据流向
+    L --> |存储会话记录|B
+    M --> |存储原始文档|B
+    N --> |存储文档向量|B
 ## 🚀 安装说明
 
 1. 克隆项目
@@ -162,36 +197,3 @@ docker rm doc-qa-system
 默认登录凭证：
 - 用户名：admin
 - 密码：admin123
-
-```mermaid
-graph TD
-    A[用户] --> B[FastAPI 服务]
-    
-    subgraph 文档处理流程
-        C[文档上传 POST /upload] --> D[MinIO存储]
-        D --> E[向量化处理]
-        E --> F[FAISS向量数据库]
-    end
-    
-    subgraph 问答流程
-        G[问题查询 POST /query/stream] --> H[LangChain检索]
-        H --> I[向量相似度搜索]
-        I --> J[OpenAI模型生成答案]
-        J --> K[流式返回答案]
-    end
-    
-    subgraph 数据存储
-        L[(MySQL数据库)]
-        M[(MinIO对象存储)]
-        N[(FAISS向量库)]
-    end
-    
-    B --> C
-    B --> G
-    F --> I
-    D --> M
-    
-    %% 数据流向
-    L --> |存储会话记录|B
-    M --> |存储原始文档|B
-    N --> |存储文档向量|B
