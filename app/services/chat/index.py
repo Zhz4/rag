@@ -38,13 +38,6 @@ async def query_stream(question: Question, db: Session):
                     if task.done():
                         if not result:
                             result = await task
-                            # 保存对话历史到Mysql
-                            await qa_system.save_chat_history(
-                                question.session_id,
-                                question.text,
-                                result["answer"],
-                                question.user_id,
-                            )
                             # 发送源文档信息
                             if "source_documents" in result:
                                 sources = []
@@ -58,6 +51,14 @@ async def query_stream(question: Question, db: Session):
                                             "page": doc.metadata.get("page", 0),
                                         }
                                     )
+                                # 保存对话历史到Mysql
+                                await qa_system.save_chat_history(
+                                    question.session_id,
+                                    question.text,
+                                    result["answer"],
+                                    question.user_id,
+                                    sources
+                                )
                                 yield handler.create_sse_event(sources, is_source=True)
                         break
                     continue

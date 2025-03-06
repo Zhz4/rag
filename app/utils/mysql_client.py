@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.db.models.chat import ChatHistory, sessions
+from app.db.models.chat import ChatHistory, sessions, Quote
 from typing import List, Dict
 
 
@@ -40,7 +40,7 @@ class MySQLClient:
         return history
 
     async def save_chat_history(
-        self, session_id: str, question: str, answer: str, user_id: str
+        self, session_id: str, question: str, answer: str, user_id: str, sources: list
     ):
         """保存会话记录"""
         # 检查会话是否存在
@@ -58,6 +58,10 @@ class MySQLClient:
 
         # 保存会话记录
         chat = ChatHistory(session_id=session_id, question=question, answer=answer)
+        # 保存引用
+        for source in sources:
+            quote = Quote(chat_history_id=chat.id, content=source["page_content"], page_number=source["page"], source=source["source"])
+            self.db.add(quote)
         self.db.add(chat)
         self.db.commit()
 

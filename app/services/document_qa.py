@@ -69,10 +69,10 @@ class DocumentQA:
         )
 
     async def save_chat_history(
-        self, session_id: str, question: str, answer: str, user_id: str
+        self, session_id: str, question: str, answer: str, user_id: str, sources: list
     ):
         """保存对话历史到MySQL"""
-        await self.mysql.save_chat_history(session_id, question, answer, user_id)
+        await self.mysql.save_chat_history(session_id, question, answer, user_id, sources)
 
     async def get_chat_history(self, session_id: str, user_id: str):
         """获取聊天历史"""

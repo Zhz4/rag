@@ -17,6 +17,16 @@ class ChatHistory(Base):
     def __repr__(self):
         return f"<ChatHistory(session_id={self.session_id})>"
 
+class Quote(Base):
+    __tablename__ = "quote"
+
+    id = Column(Integer, primary_key=True)
+    chat_history_id = Column(Integer, ForeignKey("chat_history.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    page_number = Column(Integer, nullable=False)
+    source = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
 
 class sessions(Base):
     __tablename__ = "sessions"
