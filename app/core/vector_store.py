@@ -135,10 +135,6 @@ class VectorStore:
 
     @staticmethod
     def delete_documents(doc_ids: list[str]):
-        """删除指定文档的向量数据
-        Args:
-            doc_ids: 要删除的文档ID列表
-        """
         try:
             vectorstore = VectorStore.load_vectorstore()
             if not vectorstore:

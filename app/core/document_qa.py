@@ -3,23 +3,18 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from app.config.index import settings
 from app.logging.logging import logger
-from app.services.vector_store import VectorStore
-from app.utils.mysql_client import MySQLClient
+from app.core.vector_store import VectorStore
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 
 
 class DocumentQA:
-    """文档问答核心类"""
-
     def __init__(self, db: Session):
         self.llm = None
+        self.db = db
         self.vectorstore = None
-        self.mysql = MySQLClient(db)
         self.init_resources()
 
     def init_resources(self, streaming=False):
-        """初始化 LLM 和向量数据库"""
         self.llm = ChatOpenAI(
             model=settings.OPENAI_MODEL,
             openai_api_key=settings.OPENAI_API_KEY,
@@ -33,16 +28,15 @@ class DocumentQA:
     async def get_memory(
         self, session_id: str, user_id: str
     ) -> ConversationBufferMemory:
-        """获取带历史记录的记忆对象"""
         memory = ConversationBufferMemory(
             input_key="question",
             output_key="answer",
             memory_key="chat_history",
             return_messages=True,
         )
+        from app.services.frontend.index import chat_history_serve
 
-        # 从MySQL加载历史记录
-        history = await self.mysql.get_chat_history(session_id, user_id)
+        history = await chat_history_serve(session_id, user_id, self.db)
         for msg in history:
             memory.save_context(
                 {"question": msg["question"]}, {"answer": msg["answer"]}
@@ -52,12 +46,10 @@ class DocumentQA:
     async def create_qa_chain(
         self, session_id: str, streaming_handler=None, user_id: str = None
     ):
-        """创建问答链"""
         if streaming_handler:
             self.init_resources(streaming=True)
             self.llm.callbacks = [streaming_handler]
 
-        # 获取带历史记录的记忆对象
         memory = await self.get_memory(session_id, user_id)
 
         return ConversationalRetrievalChain.from_llm(
@@ -67,25 +59,3 @@ class DocumentQA:
             return_source_documents=True,
             output_key="answer",
         )
-
-    async def save_chat_history(
-        self, session_id: str, question: str, answer: str, user_id: str, sources: list
-    ):
-        """保存对话历史到MySQL"""
-        await self.mysql.save_chat_history(session_id, question, answer, user_id, sources)
-
-    async def get_chat_history(self, session_id: str, user_id: str):
-        """获取聊天历史"""
-        # 检查 session_id 是否存在
-        history = await self.mysql.get_chat_history(session_id, user_id)
-        if not history:
-            raise HTTPException(status_code=404, detail=f"会话 ID {session_id} 不存在")
-        return history
-
-    async def check_session_exists(self, session_id: str) -> bool:
-        """检查会话是否存在"""
-        return await self.mysql.exists(session_id)
-
-    async def get_session(self, user_id: str):
-        """获取会话列表"""
-        return await self.mysql.get_session(user_id)

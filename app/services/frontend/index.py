@@ -1,23 +1,20 @@
 import asyncio
 import os
-
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
-
-from app.api.models import Question
-from app.services.document_qa import DocumentQA
+from app.db.models.chat import ChatHistory, sessions, Quote
+from app.api.schemas.index import Question
+from app.core.document_qa import DocumentQA
 from app.utils.handlers import StreamingHandler
 from app.config.index import settings
 
-async def query_stream(question: Question, db: Session):
-    """流式问答"""
+
+async def query_stream_serve(question: Question, db: Session):
     try:
         if not os.path.exists(settings.VECTOR_DB_PATH):
             raise HTTPException(status_code=404, detail="向量数据库不存在")
-
-        # 创建 DocumentQA 实例，传入数据库会话
         qa_system = DocumentQA(db)
         handler = StreamingHandler()
         qa_chain = await qa_system.create_qa_chain(
@@ -29,7 +26,6 @@ async def query_stream(question: Question, db: Session):
         async def stream_response():
             task = asyncio.create_task(qa_chain.ainvoke({"question": question.text}))
             result = None
-
             while True:
                 try:
                     token = await asyncio.wait_for(handler.queue.get(), timeout=0.1)
@@ -38,7 +34,6 @@ async def query_stream(question: Question, db: Session):
                     if task.done():
                         if not result:
                             result = await task
-                            # 发送源文档信息
                             if "source_documents" in result:
                                 sources = []
                                 for doc in result["source_documents"]:
@@ -51,13 +46,12 @@ async def query_stream(question: Question, db: Session):
                                             "page": doc.metadata.get("page", 0),
                                         }
                                     )
-                                # 保存对话历史到Mysql
                                 await qa_system.save_chat_history(
                                     question.session_id,
                                     question.text,
                                     result["answer"],
                                     question.user_id,
-                                    sources
+                                    sources,
                                 )
                                 yield handler.create_sse_event(sources, is_source=True)
                         break
@@ -65,7 +59,6 @@ async def query_stream(question: Question, db: Session):
                 except Exception as e:
                     print(f"Error: {e}")
                     break
-
             yield handler.create_sse_event(None)
 
         return StreamingResponse(
@@ -81,19 +74,64 @@ async def query_stream(question: Question, db: Session):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def get_chat_history(session_id: str, user_id: str, db: Session):
-    """获取聊天历史"""
+async def chat_history_serve(session_id: str, user_id: str, db: Session):
     try:
-        qa_system = DocumentQA(db)
-        return await qa_system.get_chat_history(session_id, user_id)
+        query = (
+            db.query(ChatHistory, sessions, Quote)
+            .join(sessions, ChatHistory.session_id == sessions.session_id)
+            .join(
+                Quote,
+                ChatHistory.id == Quote.chat_history_id,
+                isouter=True,
+            )
+        )
+        if session_id:
+            query = query.filter(ChatHistory.session_id == session_id)
+        if user_id:
+            query = query.filter(sessions.user_id == user_id)
+        results = query.all()
+        history = []
+        current_chat = None
+        for chat_history, session, quote in results:
+            if current_chat is None or current_chat["id"] != chat_history.id:
+                current_chat = {
+                    "id": chat_history.id,
+                    "question": chat_history.question,
+                    "answer": chat_history.answer,
+                    "session_id": chat_history.session_id,
+                    "created_at": chat_history.created_at.isoformat(),
+                    "quotes": [],
+                }
+                history.append(current_chat)
+            if quote:
+                current_chat["quotes"].append(
+                    {
+                        "content": quote.content,
+                        "page_number": quote.page_number,
+                        "source": quote.source,
+                    }
+                )
+
+        if not history:
+            raise HTTPException(status_code=404, detail=f"会话 ID {session_id} 不存在")
+        return history
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def get_session(user_id: str, db: Session):
-    """获取会话列表"""
+async def get_session_serve(user_id: str, db: Session):
     try:
-        qa_system = DocumentQA(db)
-        return await qa_system.get_session(user_id)
+        results = (
+            db.query(
+                sessions.session_id.label("session_id"),
+                sessions.user_id.label("user_id"),
+                sessions.title.label("title"),
+                sessions.created_at.label("created_at"),
+            )
+            .filter(sessions.user_id == user_id, sessions.is_deleted == False)
+            .order_by(sessions.created_at.desc())
+            .all()
+        )
+        return [row._asdict() for row in results]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
