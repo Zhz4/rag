@@ -87,3 +87,4 @@ faiss_index/
 # 忽略已处理的文档目录
 ReadBooks/
 ReadBooks/*
+figures/*

@@ -41,18 +41,22 @@ async def query_stream_serve(question: Question, db: Session):
                                         {
                                             "page_content": doc.page_content,
                                             "source": doc.metadata.get(
-                                                "source", "未知来源"
+                                                "filename", "未知来源"
                                             ),
-                                            "page": doc.metadata.get("page", 0),
+                                            "page": doc.metadata.get("page_number", 0),
+                                            "html": doc.metadata.get(
+                                                "text_as_html", ""
+                                            ),
                                         }
                                     )
-                                await qa_system.save_chat_history(
-                                    question.session_id,
-                                    question.text,
-                                    result["answer"],
-                                    question.user_id,
-                                    sources,
-                                )
+                                # TODO：保存聊天历史
+                                # await qa_system.save_chat_history(
+                                #     question.session_id,
+                                #     question.text,
+                                #     result["answer"],
+                                #     question.user_id,
+                                #     sources,
+                                # )
                                 yield handler.create_sse_event(sources, is_source=True)
                         break
                     continue
@@ -111,9 +115,8 @@ async def chat_history_serve(session_id: str, user_id: str, db: Session):
                         "source": quote.source,
                     }
                 )
-
-        if not history:
-            raise HTTPException(status_code=404, detail=f"会话 ID {session_id} 不存在")
+        # if not history:
+        #     raise HTTPException(status_code=404, detail=f"会话 ID {session_id} 不存在")
         return history
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

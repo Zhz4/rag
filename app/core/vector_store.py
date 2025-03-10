@@ -1,6 +1,5 @@
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.document_loaders import PyMuPDFLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from app.config.index import settings
 from app.logging.logging import logger
@@ -11,7 +10,9 @@ from app.db.models.chat import files
 from app.utils.minio_client import MinioClient
 from pathlib import Path
 import shutil
-from langchain.document_loaders import PyMuPDFLoader
+from app.parse.pdf import parse_pdf
+from unstructured.chunking.basic import chunk_elements
+from langchain_core.documents import Document
 
 
 class VectorStore:
@@ -21,16 +22,13 @@ class VectorStore:
         documents = []
         temp_dir = Path("temp")
         temp_dir.mkdir(exist_ok=True)
-
         try:
             files_query = (
                 db.query(files)
                 .filter(files.is_study == False, files.is_deleted == False)
                 .all()
-            )  # 添加 .all()
-
+            )
             minio_client = MinioClient()
-
             for file_record in files_query:
                 try:
                     # 从URL中提取文件名
@@ -38,25 +36,18 @@ class VectorStore:
                     if not file_name:  # 添加检查
                         logger.warning(f"跳过无效文件名的记录: {file_record.id}")
                         continue
-
                     local_path = temp_dir / file_name
-
                     # 使用文件名从MinIO下载
                     await minio_client.download_file(file_name, str(local_path))
-
                     # 加载文档
                     if file_name.lower().endswith(".pdf"):
-                        loader = PyMuPDFLoader(str(local_path))
-                        documents.extend(loader.load())
-
+                        documents.extend(parse_pdf(str(local_path)))
                     # 删除临时文件
                     if local_path.exists():
                         local_path.unlink()
-
                 except Exception as e:
                     logger.error(f"处理文件 {file_name} 时出错: {str(e)}")
                     continue
-
             return documents
         except Exception as e:
             logger.error(f"加载文档时出错: {str(e)}")
@@ -78,13 +69,20 @@ class VectorStore:
                 logger.info("检测到已存在的向量数据库，执行增量更新")
                 existing_vectorstore = VectorStore.load_vectorstore()
                 documents = await VectorStore.load_documents(db)
+                new_docs = chunk_elements(documents)
+                docs = []
+                for d in new_docs:
+                    doc = Document(
+                        page_content=str(d.text),
+                        metadata=d.metadata.to_dict(),
+                    )
+                    docs.append(doc)
+                # text_splitter = RecursiveCharacterTextSplitter(
+                #     chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
+                # )
+                # new_docs = text_splitter.split_documents(documents)
 
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
-                )
-                new_docs = text_splitter.split_documents(documents)
-
-                existing_vectorstore.add_documents(new_docs)
+                existing_vectorstore.add_documents(docs)
                 existing_vectorstore.save_local(settings.FAISS_INDEX_PATH)
                 logger.info("向量索引已更新")
                 return existing_vectorstore
@@ -96,11 +94,19 @@ class VectorStore:
 
             logger.info(f"共加载 {len(documents)} 个文档片段")
 
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
-            )
-            docs = text_splitter.split_documents(documents)
-            logger.info(f"文本切分完成，共生成 {len(docs)} 个文本块")
+            new_docs = chunk_elements(documents)
+            docs = []
+            for d in new_docs:
+                doc = Document(
+                    page_content=str(d.text),
+                    metadata=d.metadata.to_dict(),
+                )
+                docs.append(doc)
+            # text_splitter = RecursiveCharacterTextSplitter(
+            #     chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP
+            # )
+            # docs = text_splitter.split_documents(documents)
+            # logger.info(f"文本切分完成，共生成 {len(docs)} 个文本块")
 
             embedding = OpenAIEmbeddings(
                 openai_api_key=settings.OPENAI_API_KEY,

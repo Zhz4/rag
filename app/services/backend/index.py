@@ -34,11 +34,11 @@ async def rebuild_db_serve(db):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def upload_serve(files: list[UploadFile], db: Session):
+async def upload_serve(upload_files: list[UploadFile], db: Session):
     minio = MinioClient()
     try:
         results = []
-        for file in files:
+        for file in upload_files:
             content = await file.read()
             file_url = await minio.upload_file_bytes(
                 file_bytes=content, object_name=file.filename
@@ -65,24 +65,9 @@ async def study_documents_serve():
         if not vectorstore:
             return {"message": "向量数据库不存在"}
         docstore = vectorstore.docstore
-        unique_sources = {}
         documents = []
         for doc_id, doc in docstore._dict.items():
-            source = doc.metadata.get("source")
-            if source:
-                if source not in unique_sources:
-                    filename = os.path.basename(source)
-                    unique_sources[source] = []
-                unique_sources[source].append(doc_id)
-        for source, doc_ids in unique_sources.items():
-            filename = os.path.basename(source)
-            documents.append(
-                {
-                    "ids": doc_ids,
-                    "source": filename,
-                    "full_path": source,
-                }
-            )
+            documents.append(doc)
         return {"documents": documents}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -35,4 +35,4 @@ app.include_router(router)
 if __name__ == "__main__":
     logger.info("Starting server...")
     # 开发环境下可以设置 reload=False
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)  # 关闭自动重载
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)  # 关闭自动重载

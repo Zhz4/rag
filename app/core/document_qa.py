@@ -54,7 +54,11 @@ class DocumentQA:
 
         return ConversationalRetrievalChain.from_llm(
             llm=self.llm,
-            retriever=self.vectorstore.as_retriever(search_kwargs={"k": 3}),
+            retriever=self.vectorstore.as_retriever(
+                search_kwargs={
+                    "score_threshold": 0.7,
+                }
+            ),
             memory=memory,
             return_source_documents=True,
             output_key="answer",

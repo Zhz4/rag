@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Query, Depends, Body
+from fastapi import APIRouter, UploadFile, File, Query, Depends, Body, HTTPException
 from sqlalchemy.orm import Session
 from app.api.schemas.index import (
     Question,
@@ -43,7 +43,7 @@ async def upload(
         return error_response(message=str(e))
 
 
-@router.get("/study-documents", summary="模型学习文档", tags=["后台管理"])
+@router.get("/study-documents", summary="模型已学习的所有片段", tags=["后台管理"])
 async def study_documents():
     try:
         result = await study_documents_serve()
@@ -88,6 +88,8 @@ async def chat_history(
 ):
     try:
         result = await chat_history_serve(session_id, user_id, db)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"会话 ID {session_id} 不存在")
         return success_response(data=result)
     except Exception as e:
         return error_response(message=str(e))
